@@ -20,70 +20,122 @@ public final class DeviceOverviewView {
         var statusLabel = LabLabel.create("Connecting...");
         root.add(statusLabel, BorderLayout.CENTER);
 
-        // ---- Serial communication in background thread ----
-        new Thread(() -> {
-            var port = SerialPort.getCommPort(device.systemPortName());
-
-            port.setBaudRate(9600);
-            port.setNumDataBits(8);
-            port.setNumStopBits(SerialPort.ONE_STOP_BIT);
-            port.setParity(SerialPort.NO_PARITY);
-
-            port.setComPortTimeouts(
-                    SerialPort.TIMEOUT_READ_BLOCKING,
-                    1000,
-                    0
-            );
-
-            if (!port.openPort()) {
-                SwingUtilities.invokeLater(() ->
-                        statusLabel.setText("Error: Unable to open port")
-                );
-                return;
-            }
-
-            try {
-                byte[] readAllCmd = new byte[] {
-                        (byte) 0xF7,
-                        (byte) 0x02,
-                        (byte) 0x03,
-                        (byte) 0x04,
-                        (byte) 0x09,
-                        (byte) 0xE2,
-                        (byte) 0xAB,
-                        (byte) 0xFD
-                };
-
-                port.writeBytes(readAllCmd, readAllCmd.length);
-
-                byte[] buffer = new byte[256];
-                int len = port.readBytes(buffer, buffer.length);
-
-                if (len <= 0) {
-                    SwingUtilities.invokeLater(() ->
-                            statusLabel.setText("No response from device")
-                    );
-                    return;
-                }
-
-                var responseHex = toHex(buffer, len);
-
-                SwingUtilities.invokeLater(() ->
-                        statusLabel.setText("Response: " + responseHex + "\n" +
-                                format(DeviceResponseParser.parse(buffer, len)))
-                );
-
-            } catch (Exception e) {
-                SwingUtilities.invokeLater(() ->
-                        statusLabel.setText("Error: " + e.getMessage())
-                );
-            } finally {
-                port.closePort();
-            }
-        }, "device-test-thread").start();
+        new Thread(
+                () -> communicate(device, statusLabel),
+                "device-overview-comm"
+        ).start();
 
         return root;
     }
+
+    // ===============================
+    // Communication
+    // ===============================
+
+    private static void communicate(
+            SerialPortInfo device,
+            JLabel statusLabel
+    ) {
+        var port = SerialPort.getCommPort(device.systemPortName());
+
+        port.setBaudRate(9600);
+        port.setNumDataBits(8);
+        port.setNumStopBits(SerialPort.ONE_STOP_BIT);
+        port.setParity(SerialPort.NO_PARITY);
+
+        port.setComPortTimeouts(
+                SerialPort.TIMEOUT_READ_BLOCKING,
+                1000,
+                0
+        );
+
+        if (!port.openPort()) {
+            renderError(statusLabel, "Unable to open port");
+            return;
+        }
+
+        try {
+            sendReadAll(port);
+
+            var response = readOnce(port);
+            if (response == null) {
+                renderError(statusLabel, "No response from device");
+                return;
+            }
+
+            var snapshot = DeviceResponseParser.parse(
+                    response.data(),
+                    response.length()
+            );
+
+            renderSuccess(statusLabel, response, snapshot);
+
+        } catch (Exception e) {
+            renderError(statusLabel, e.getMessage());
+        } finally {
+            port.closePort();
+        }
+    }
+
+    private static void sendReadAll(SerialPort port) {
+        byte[] cmd = {
+                (byte) 0xF7,
+                (byte) 0x02,
+                (byte) 0x03,
+                (byte) 0x04,
+                (byte) 0x09,
+                (byte) 0xE2,
+                (byte) 0xAB,
+                (byte) 0xFD
+        };
+
+        port.writeBytes(cmd, cmd.length);
+    }
+
+    private static ReadResult readOnce(SerialPort port) {
+        byte[] buffer = new byte[256];
+        int len = port.readBytes(buffer, buffer.length);
+
+        if (len <= 0) {
+            return null;
+        }
+        return new ReadResult(buffer, len);
+    }
+
+    // ===============================
+    // Rendering (EDT only)
+    // ===============================
+
+    private static void renderSuccess(
+            JLabel label,
+            ReadResult response,
+            DeviceSnapshot snapshot
+    ) {
+        var text =
+                "Response:\n" +
+                        toHex(response.data(), response.length()) +
+                        "\n\n" +
+                        formatSnapshot(snapshot);
+
+        SwingUtilities.invokeLater(() ->
+                label.setText("<html>" +
+                        text.replace("\n", "<br>") +
+                        "</html>")
+        );
+    }
+
+    private static void renderError(
+            JLabel label,
+            String message
+    ) {
+        SwingUtilities.invokeLater(() ->
+                label.setText("Error: " + message)
+        );
+    }
+
+    // ===============================
+    // Formatting helpers
+    // ===============================
 
     private static String toHex(byte[] data, int len) {
         var sb = new StringBuilder();
@@ -93,7 +145,7 @@ public final class DeviceOverviewView {
         return sb.toString().trim();
     }
 
-    private static String format(DeviceSnapshot s) {
+    private static String formatSnapshot(DeviceSnapshot s) {
         return """
             CH1:
               Voltage: %s V (set %s V)
@@ -119,4 +171,9 @@ public final class DeviceOverviewView {
         );
     }
 
+    // ===============================
+    // Small value object
+    // ===============================
+
+    private record ReadResult(byte[] data, int length) {}
 }
