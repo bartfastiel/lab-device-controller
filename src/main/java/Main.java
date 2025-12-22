@@ -1,3 +1,5 @@
+import javax.swing.SwingUtilities;
+
 void main() {
-    IO.println("Hello World!");
+    SwingUtilities.invokeLater(MainWindow::new);
 }
