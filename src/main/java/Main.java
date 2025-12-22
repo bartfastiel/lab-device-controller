@@ -1,16 +1,18 @@
-import com.fazecast.jSerialComm.*;
+import com.fazecast.jSerialComm.SerialPort;
 
 import javax.swing.SwingUtilities;
+import java.util.List;
+import java.util.stream.Stream;
 
 void main() {
     var ports = SerialPort.getCommPorts();
-    if (ports.length == 0) {
-        System.out.println("No serial ports found.");
-        return;
-    }
-    Stream.of(ports).forEach(port ->
-        System.out.println("Found port: " + port.getSystemPortName() + " - " + port.getDescriptivePortName())
-    );
 
-    SwingUtilities.invokeLater(MainWindow::new);
+    var portInfos = Stream.of(ports)
+            .map(port -> new SerialPortInfo(
+                    port.getSystemPortName(),
+                    port.getDescriptivePortName()
+            ))
+            .toList();
+
+    SwingUtilities.invokeLater(() -> new MainWindow(portInfos));
 }
