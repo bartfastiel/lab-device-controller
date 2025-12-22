@@ -69,7 +69,8 @@ public final class DeviceOverviewView {
                 var responseHex = toHex(buffer, len);
 
                 SwingUtilities.invokeLater(() ->
-                        statusLabel.setText("Response: " + responseHex)
+                        statusLabel.setText("Response: " + responseHex + "\n" +
+                                format(DeviceResponseParser.parse(buffer, len)))
                 );
 
             } catch (Exception e) {
@@ -91,4 +92,31 @@ public final class DeviceOverviewView {
         }
         return sb.toString().trim();
     }
+
+    private static String format(DeviceSnapshot s) {
+        return """
+            CH1:
+              Voltage: %s V (set %s V)
+              Current: %s A (set %s A)
+              Mode: %s
+
+            CH2:
+              Voltage: %s V (set %s V)
+              Current: %s A (set %s A)
+              Mode: %s
+            """.formatted(
+                s.ch1().voltageMeasured().toPlainString(),
+                s.ch1().voltageSet().toPlainString(),
+                s.ch1().currentMeasured().toPlainString(),
+                s.ch1().currentSet().toPlainString(),
+                s.ch1().cc() ? "CC" : "CV",
+
+                s.ch2().voltageMeasured().toPlainString(),
+                s.ch2().voltageSet().toPlainString(),
+                s.ch2().currentMeasured().toPlainString(),
+                s.ch2().currentSet().toPlainString(),
+                s.ch2().cc() ? "CC" : "CV"
+        );
+    }
+
 }
