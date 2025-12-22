@@ -5,6 +5,6 @@ public record SerialPortInfo(
 ) {
     @Override
     public String toString() {
-        return systemPortName + " – " + description;
+        return description;
     }
 }

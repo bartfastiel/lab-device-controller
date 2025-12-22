@@ -1,7 +1,6 @@
 import com.fazecast.jSerialComm.SerialPort;
 
 import javax.swing.SwingUtilities;
-import java.util.List;
 import java.util.stream.Stream;
 
 void main() {
