@@ -4,11 +4,12 @@ import java.math.RoundingMode;
 /**
  * Builds command frames according to the PeakTech 2CH protocol.
  * All commands:
- *   F7 ... CRC_LO CRC_HI FD
+ * F7 ... CRC_LO CRC_HI FD
  */
 public final class DeviceCommands {
 
-    private DeviceCommands() {}
+    private DeviceCommands() {
+    }
 
     // -------------------------------------------------
     // Public commands
@@ -45,28 +46,30 @@ public final class DeviceCommands {
     }
 
     public static byte[] setOutput(boolean on) {
-        return setFlag((byte) 0x00, on);
+        return setFlag((byte) 0x1E, on ? 1 : 0);
     }
 
     public static byte[] setSerial(boolean on) {
-        return setFlag((byte) 0x02, on);
+        return setFlag((byte) 0x1F, on ? 1 : 0);
     }
 
     public static byte[] setParallel(boolean on) {
-        return setFlag((byte) 0x03, on);
+        return setFlag((byte) 0x1F, on ? 2 : 0);
     }
 
     // -------------------------------------------------
     // Internals
     // -------------------------------------------------
 
-    private static byte[] setFlag(byte address, boolean on) {
+    private static byte[] setFlag(byte address, int value) {
         return withCrcAndEnd(new byte[]{
                 (byte) 0xF7,
                 (byte) 0x02,
-                (byte) 0x06,
+                (byte) 0x0A,
                 address,
-                (byte) (on ? 1 : 0)
+                (byte) 0x01,
+                (byte) 0x00,
+                (byte) value
         });
     }
 
