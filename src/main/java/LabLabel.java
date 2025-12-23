@@ -11,4 +11,16 @@ public final class LabLabel {
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         return label;
     }
+
+    public static Component title(String title) {
+        return create(title);
+    }
+
+    public static Component small(String cv) {
+        return create(cv);
+    }
+
+    public static Component normal(String label) {
+        return create(label);
+    }
 }

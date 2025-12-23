@@ -7,11 +7,11 @@ void main() {
     var ports = SerialPort.getCommPorts();
 
     var portInfos = Stream.of(ports)
-            .map(port -> new SerialPortInfo(
-                    port.getSystemPortName(),
-                    port.getDescriptivePortName()
+            .map(p -> new SerialPortInfo(
+                    p.getSystemPortName(),
+                    p.getDescriptivePortName()
             ))
             .toList();
 
-    SwingUtilities.invokeLater(() -> new MainWindow(portInfos));
+    SwingUtilities.invokeLater(() -> MainWindow.show(portInfos));
 }

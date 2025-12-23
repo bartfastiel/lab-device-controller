@@ -1,179 +1,189 @@
-import com.fazecast.jSerialComm.SerialPort;
-
 import javax.swing.*;
 import java.awt.*;
 
 public final class DeviceOverviewView {
 
-    private DeviceOverviewView() {}
+    private DeviceOverviewView() {
+    }
 
-    public static JComponent createView(
+    public static OverviewScreen createView(
             SerialPortInfo device,
+            DeviceActions actions,
             Runnable onBack
     ) {
         var root = LabPanel.border(30);
 
-        var topButton = LabButton.create(device.toString());
-        topButton.addActionListener(_ -> onBack.run());
-        root.add(topButton, BorderLayout.NORTH);
+        // -------------------------
+        // Top bar
+        // -------------------------
 
-        var statusLabel = LabLabel.create("Connecting...");
-        root.add(statusLabel, BorderLayout.CENTER);
+        var top = new JPanel(new BorderLayout());
+        top.setBackground(Color.BLACK);
 
-        new Thread(
-                () -> communicate(device, statusLabel),
-                "device-overview-comm"
-        ).start();
+        var backButton = LabButton.create(device.toString());
+        backButton.addActionListener(_ -> onBack.run());
 
-        return root;
+        var statusLed = LabLedLabel.create(); // gray by default
+
+        top.add(backButton, BorderLayout.WEST);
+        top.add(statusLed, BorderLayout.EAST);
+
+        root.add(top, BorderLayout.NORTH);
+
+        // -------------------------
+        // Center layout
+        // -------------------------
+
+        var center = new JPanel(new GridLayout(1, 2, 40, 0));
+        center.setBackground(Color.BLACK);
+
+        // Channel 1
+        var ch1VoltageSet = LabValueDisplay.editable(2, 2);
+        var ch1CurrentSet = LabValueDisplay.editable(1, 3);
+        var ch1VoltageMeas = LabValueDisplay.readonly(2, 2);
+        var ch1CurrentMeas = LabValueDisplay.readonly(1, 3);
+
+        var ch1CV = LabLedLabel.create();
+        var ch1CC = LabLedLabel.create();
+
+        center.add(
+                channelPanel(
+                        "Channel 1",
+                        ch1VoltageSet,
+                        ch1VoltageMeas,
+                        ch1CurrentSet,
+                        ch1CurrentMeas,
+                        ch1CV,
+                        ch1CC
+                )
+        );
+
+        // Channel 2
+        var ch2VoltageSet = LabValueDisplay.editable(2, 2);
+        var ch2CurrentSet = LabValueDisplay.editable(1, 3);
+        var ch2VoltageMeas = LabValueDisplay.readonly(2, 2);
+        var ch2CurrentMeas = LabValueDisplay.readonly(1, 3);
+
+        var ch2CV = LabLedLabel.create();
+        var ch2CC = LabLedLabel.create();
+
+        center.add(
+                channelPanel(
+                        "Channel 2",
+                        ch2VoltageSet,
+                        ch2VoltageMeas,
+                        ch2CurrentSet,
+                        ch2CurrentMeas,
+                        ch2CV,
+                        ch2CC
+                )
+        );
+
+        root.add(center, BorderLayout.CENTER);
+
+        // -------------------------
+        // Bottom buttons
+        // -------------------------
+
+        var bottom = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 0));
+        bottom.setBackground(Color.BLACK);
+
+        var outputBtn = LabToggleButton.create("Output");
+        var serialBtn = LabToggleButton.create("Serial");
+        var parallelBtn = LabToggleButton.create("Parallel");
+
+        outputBtn.onToggle(actions.setOutput());
+        serialBtn.onToggle(actions.setSerial());
+        parallelBtn.onToggle(actions.setParallel());
+
+        bottom.add(outputBtn);
+        bottom.add(serialBtn);
+        bottom.add(parallelBtn);
+
+        root.add(bottom, BorderLayout.SOUTH);
+
+        // -------------------------
+        // Wire UI -> Device actions
+        // -------------------------
+
+        ch1VoltageSet.onChange(actions.setCh1Voltage());
+        ch1CurrentSet.onChange(actions.setCh1Current());
+
+        ch2VoltageSet.onChange(actions.setCh2Voltage());
+        ch2CurrentSet.onChange(actions.setCh2Current());
+
+        // -------------------------
+        // Bindings (Device -> UI)
+        // -------------------------
+
+        var bindings = new OverviewBindings(
+                statusLed::setGray,
+                statusLed::setGreen,
+
+                ch1VoltageMeas::setValue,
+                ch1CurrentMeas::setValue,
+                ch1VoltageSet::setValue,
+                ch1CurrentSet::setValue,
+                ch1CV::setOn,
+                ch1CC::setOn,
+
+                ch2VoltageMeas::setValue,
+                ch2CurrentMeas::setValue,
+                ch2VoltageSet::setValue,
+                ch2CurrentSet::setValue,
+                ch2CV::setOn,
+                ch2CC::setOn,
+
+                outputBtn::setOn,
+                serialBtn::setOn,
+                parallelBtn::setOn
+        );
+
+        return new OverviewScreen(root, bindings);
     }
 
-    // ===============================
-    // Communication
-    // ===============================
+    // -------------------------
+    // Helper: channel layout
+    // -------------------------
 
-    private static void communicate(
-            SerialPortInfo device,
-            JLabel statusLabel
+    private static JComponent channelPanel(
+            String title,
+            LabValueDisplay vSet,
+            LabValueDisplay vMeas,
+            LabValueDisplay iSet,
+            LabValueDisplay iMeas,
+            LabLedLabel cv,
+            LabLedLabel cc
     ) {
-        var port = SerialPort.getCommPort(device.systemPortName());
+        var p = new JPanel();
+        p.setBackground(Color.BLACK);
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
 
-        port.setBaudRate(9600);
-        port.setNumDataBits(8);
-        port.setNumStopBits(SerialPort.ONE_STOP_BIT);
-        port.setParity(SerialPort.NO_PARITY);
+        p.add(LabLabel.title(title));
+        p.add(Box.createVerticalStrut(20));
 
-        port.setComPortTimeouts(
-                SerialPort.TIMEOUT_READ_BLOCKING,
-                1000,
-                0
-        );
+        p.add(row("Voltage", vSet, vMeas));
+        p.add(Box.createVerticalStrut(10));
+        p.add(row("Current", iSet, iMeas));
+        p.add(Box.createVerticalStrut(10));
 
-        if (!port.openPort()) {
-            renderError(statusLabel, "Unable to open port");
-            return;
-        }
+        var status = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        status.setBackground(Color.BLACK);
+        status.add(LabLabel.small("CV"));
+        status.add(cv);
+        status.add(LabLabel.small("CC"));
+        status.add(cc);
 
-        try {
-            sendReadAll(port);
-
-            var response = readOnce(port);
-            if (response == null) {
-                renderError(statusLabel, "No response from device");
-                return;
-            }
-
-            var snapshot = DeviceResponseParser.parse(
-                    response.data(),
-                    response.length()
-            );
-
-            renderSuccess(statusLabel, response, snapshot);
-
-        } catch (Exception e) {
-            renderError(statusLabel, e.getMessage());
-        } finally {
-            port.closePort();
-        }
+        p.add(status);
+        return p;
     }
 
-    private static void sendReadAll(SerialPort port) {
-        byte[] cmd = {
-                (byte) 0xF7,
-                (byte) 0x02,
-                (byte) 0x03,
-                (byte) 0x04,
-                (byte) 0x09,
-                (byte) 0xE2,
-                (byte) 0xAB,
-                (byte) 0xFD
-        };
-
-        port.writeBytes(cmd, cmd.length);
+    private static JComponent row(String label, JComponent left, JComponent right) {
+        var p = new JPanel(new GridLayout(1, 3, 10, 0));
+        p.setBackground(Color.BLACK);
+        p.add(LabLabel.normal(label));
+        p.add(left);
+        p.add(right);
+        return p;
     }
-
-    private static ReadResult readOnce(SerialPort port) {
-        byte[] buffer = new byte[256];
-        int len = port.readBytes(buffer, buffer.length);
-
-        if (len <= 0) {
-            return null;
-        }
-        return new ReadResult(buffer, len);
-    }
-
-    // ===============================
-    // Rendering (EDT only)
-    // ===============================
-
-    private static void renderSuccess(
-            JLabel label,
-            ReadResult response,
-            DeviceSnapshot snapshot
-    ) {
-        var text =
-                "Response:\n" +
-                        toHex(response.data(), response.length()) +
-                        "\n\n" +
-                        formatSnapshot(snapshot);
-
-        SwingUtilities.invokeLater(() ->
-                label.setText("<html>" +
-                        text.replace("\n", "<br>") +
-                        "</html>")
-        );
-    }
-
-    private static void renderError(
-            JLabel label,
-            String message
-    ) {
-        SwingUtilities.invokeLater(() ->
-                label.setText("Error: " + message)
-        );
-    }
-
-    // ===============================
-    // Formatting helpers
-    // ===============================
-
-    private static String toHex(byte[] data, int len) {
-        var sb = new StringBuilder();
-        for (int i = 0; i < len; i++) {
-            sb.append(String.format("%02X ", data[i]));
-        }
-        return sb.toString().trim();
-    }
-
-    private static String formatSnapshot(DeviceSnapshot s) {
-        return """
-            CH1:
-              Voltage: %s V (set %s V)
-              Current: %s A (set %s A)
-              Mode: %s
-
-            CH2:
-              Voltage: %s V (set %s V)
-              Current: %s A (set %s A)
-              Mode: %s
-            """.formatted(
-                s.ch1().voltageMeasured().toPlainString(),
-                s.ch1().voltageSet().toPlainString(),
-                s.ch1().currentMeasured().toPlainString(),
-                s.ch1().currentSet().toPlainString(),
-                s.ch1().cc() ? "CC" : "CV",
-
-                s.ch2().voltageMeasured().toPlainString(),
-                s.ch2().voltageSet().toPlainString(),
-                s.ch2().currentMeasured().toPlainString(),
-                s.ch2().currentSet().toPlainString(),
-                s.ch2().cc() ? "CC" : "CV"
-        );
-    }
-
-    // ===============================
-    // Small value object
-    // ===============================
-
-    private record ReadResult(byte[] data, int length) {}
 }
