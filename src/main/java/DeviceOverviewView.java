@@ -152,7 +152,6 @@ public final class DeviceOverviewView {
     // -------------------------
     // Helper: channel layout
     // -------------------------
-
     private static JComponent channelPanel(
             String title,
             LabValueDisplay vSet,
@@ -162,17 +161,54 @@ public final class DeviceOverviewView {
             LabLedLabel cv,
             LabLedLabel cc
     ) {
-        var p = new JPanel();
-        p.setBackground(Color.BLACK);
-        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        var root = new JPanel();
+        root.setBackground(Color.BLACK);
+        root.setLayout(new BoxLayout(root, BoxLayout.Y_AXIS));
 
-        p.add(LabLabel.title(title));
-        p.add(Box.createVerticalStrut(20));
+        root.add(LabLabel.title(title));
+        root.add(Box.createVerticalStrut(20));
 
-        p.add(row("Voltage", vSet, vMeas));
-        p.add(Box.createVerticalStrut(10));
-        p.add(row("Current", iSet, iMeas));
-        p.add(Box.createVerticalStrut(10));
+        // -------- shared grid for Voltage + Current --------
+
+        var grid = new JPanel(new GridBagLayout());
+        grid.setBackground(Color.BLACK);
+
+        var gbc = new GridBagConstraints();
+        gbc.insets = new Insets(4, 4, 4, 4);
+        gbc.gridy = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // Column 0: labels (minimal)
+        gbc.gridx = 0;
+        gbc.weightx = 0.0;
+        grid.add(LabLabel.normal("Voltage"), gbc);
+
+        gbc.gridy = 1;
+        grid.add(LabLabel.normal("Current"), gbc);
+
+        // Column 1: Soll (preferred, expandable)
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        gbc.weightx = 0.5;
+        grid.add(vSet, gbc);
+
+        gbc.gridy = 1;
+        grid.add(iSet, gbc);
+
+        // Column 2: Ist (preferred, expandable)
+        gbc.gridx = 2;
+        gbc.gridy = 0;
+        gbc.weightx = 0.5;
+        grid.add(vMeas, gbc);
+
+        gbc.gridy = 1;
+        grid.add(iMeas, gbc);
+
+        root.add(grid);
+        root.add(Box.createVerticalStrut(12));
+
+        // -------- CV / CC status --------
 
         var status = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         status.setBackground(Color.BLACK);
@@ -181,16 +217,8 @@ public final class DeviceOverviewView {
         status.add(LabLabel.small("CC"));
         status.add(cc);
 
-        p.add(status);
-        return p;
+        root.add(status);
+        return root;
     }
 
-    private static JComponent row(String label, JComponent left, JComponent right) {
-        var p = new JPanel(new GridLayout(1, 3, 10, 0));
-        p.setBackground(Color.BLACK);
-        p.add(LabLabel.normal(label));
-        p.add(left);
-        p.add(right);
-        return p;
-    }
 }
