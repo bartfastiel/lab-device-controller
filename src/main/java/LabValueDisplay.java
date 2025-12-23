@@ -229,11 +229,12 @@ public final class LabValueDisplay extends JComponent {
         if (cursor < 0) return;
         var currentValue = currentDisplayValue.get();
         int tenExp = digits - 1 - cursor;
-        long placeValue = (long) Math.pow(10, tenExp);
-        long digitValue = Math.max(0, Math.min(9, c - '0')) * placeValue;
-        long newValue = currentValue - currentValue / placeValue % 10 * placeValue + digitValue;
-        currentDisplayValue.set(clamp(newValue));
-        emitChange();
+        var currentDigit = (currentValue / (long) Math.pow(10, tenExp)) % 10;
+        var newDigit = Math.max(0, Math.min(9, c - '0'));
+        var digitChange = newDigit - currentDigit;
+        var totalChange = digitChange * (long) Math.pow(10, tenExp);
+        var newValue = currentValue + totalChange;
+        emitChange(newValue);
         moveCursor(1);
         repaint();
     }
@@ -242,21 +243,20 @@ public final class LabValueDisplay extends JComponent {
         if (cursor < 0) return;
         var currentValue = currentDisplayValue.get();
         int tenExp = digits - 1 - cursor;
-        long placeValue = (long) Math.pow(10, tenExp - fracDigits);
-        long newValue = currentValue + delta * placeValue;
-        currentDisplayValue.set(clamp(newValue));
-        emitChange();
+        var change = delta * (long) Math.pow(10, tenExp);
+        var newValue = currentValue + change;
+        emitChange(newValue);
         repaint();
     }
 
-    private void emitChange() {
-        if (onChange != null) onChange.accept(toBigDecimal());
-    }
-
-    private BigDecimal toBigDecimal() {
-        return BigDecimal.valueOf(currentDisplayValue.get())
-                .movePointLeft(fracDigits)
-                .setScale(fracDigits, RoundingMode.UNNECESSARY);
+    private void emitChange(long newValue) {
+        long clampedValue = clamp(newValue);
+        if (onChange != null) {
+            BigDecimal decimalValue = BigDecimal.valueOf(clampedValue)
+                    .movePointLeft(fracDigits)
+                    .setScale(fracDigits, RoundingMode.UNNECESSARY);
+            onChange.accept(decimalValue);
+        }
     }
 
     private long clamp(long v) {
