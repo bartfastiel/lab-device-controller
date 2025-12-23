@@ -201,8 +201,14 @@ public final class DeviceSession {
     }
 
     private void handleFrame(byte[] frame) {
-        if (!Frames.isValidFrame(frame)) return;
-        if (!Frames.isReadAllResponse(frame)) return;
+        if (!Frames.isValidFrame(frame)) {
+            IO.println("Invalid frame received, ignoring.");
+            return;
+        }
+        if (!Frames.isReadAllResponse(frame)) {
+            IO.println("Unknown frame received, ignoring.");
+            return;
+        }
 
         coordinator.onReceive(System.nanoTime());
         dispatchFrame(frame);
@@ -321,15 +327,14 @@ final class FrameBuffer {
     }
 
     byte[] tryPopFrame() {
-        int start = indexOf((byte) 0xF7, 0);
+        int start = indexOf((byte) 0xF7);
         if (start < 0) {
-            len = 0;
             return null;
         }
 
         if (start > 0) shiftLeft(start);
 
-        int end = indexOf((byte) 0xFD, 0);
+        int end = indexOf((byte) 0xFD);
         if (end < 0) return null;
 
         int frameLen = end + 1;
@@ -339,8 +344,8 @@ final class FrameBuffer {
         return frame;
     }
 
-    private int indexOf(byte b, int from) {
-        for (int i = from; i < len; i++) {
+    private int indexOf(byte b) {
+        for (int i = 0; i < len; i++) {
             if (buf[i] == b) return i;
         }
         return -1;
