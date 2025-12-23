@@ -9,7 +9,7 @@ public final class MainWindow {
     public static void show(List<SerialPortInfo> ports) {
         var frame = new JFrame("Lab Device Controller");
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        frame.setSize(900, 440);
+        frame.setSize(965, 440);
         frame.setLocationRelativeTo(null);
 
         var host = new JPanel(new CardLayout());
