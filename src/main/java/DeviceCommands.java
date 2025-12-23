@@ -41,7 +41,7 @@ public final class DeviceCommands {
                 3,
                 1000,
                 (byte) 0x0A,
-                channel == 1 ? (byte) 0x0C : (byte) 0x0D
+                channel == 1 ? (byte) 0x0C : (byte) 0x0A
         );
     }
 
