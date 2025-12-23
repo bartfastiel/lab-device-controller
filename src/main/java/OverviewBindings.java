@@ -5,6 +5,7 @@ public record OverviewBindings(
 
         Runnable setStale,
         Runnable setFresh,
+        Consumer<Boolean> heartbeat,
 
         Consumer<BigDecimal> ch1VoltageMeasured,
         Consumer<BigDecimal> ch1CurrentMeasured,

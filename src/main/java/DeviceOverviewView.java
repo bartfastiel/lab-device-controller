@@ -24,9 +24,15 @@ public final class DeviceOverviewView {
         backButton.addActionListener(_ -> onBack.run());
 
         var statusLed = LabLedLabel.create(); // gray by default
+        var heartbeat = LabHeartbeat.create();    // white/black toggling
 
         top.add(backButton, BorderLayout.WEST);
-        top.add(statusLed, BorderLayout.EAST);
+
+        var right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        right.setBackground(Color.BLACK);
+        right.add(heartbeat);
+        right.add(statusLed);
+        top.add(right, BorderLayout.EAST);
 
         root.add(top, BorderLayout.NORTH);
 
@@ -119,6 +125,7 @@ public final class DeviceOverviewView {
         var bindings = new OverviewBindings(
                 statusLed::setGray,
                 statusLed::setGreen,
+                heartbeat::setOn,
 
                 ch1VoltageMeas::setValue,
                 ch1CurrentMeas::setValue,

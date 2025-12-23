@@ -75,6 +75,8 @@ public final class MainWindow {
 
             session = DeviceSession.create(selected.systemPortName());
 
+            var hb = new java.util.concurrent.atomic.AtomicBoolean(false);
+
             var actions = new DeviceActions(
                     session::setCh1Voltage,
                     session::setCh1Current,
@@ -96,13 +98,23 @@ public final class MainWindow {
             // Device -> UI bindings
             FieldBinder.bind(session, overview.bindings());
 
-            session.setOnStale(() ->
-                    SwingUtilities.invokeLater(overview.bindings().setStale())
-            );
+            session.setOnStale(() -> {
+                SwingUtilities.invokeLater(overview.bindings().setStale());
+                overview.bindings().heartbeat().accept(false);
+            });
 
-            session.setOnFresh(() ->
-                    SwingUtilities.invokeLater(overview.bindings().setFresh())
-            );
+            session.setOnFresh(() -> SwingUtilities.invokeLater(() -> {
+                overview.bindings().setFresh().run();
+
+                boolean next;
+                boolean prev;
+
+                prev = hb.get();
+                next = !prev;
+                hb.set(next);
+
+                overview.bindings().heartbeat().accept(next);
+            }));
 
             session.setUpdatesEnabled(true);
             show(Screen.OVERVIEW);
