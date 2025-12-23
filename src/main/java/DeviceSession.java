@@ -2,6 +2,7 @@ import com.fazecast.jSerialComm.SerialPort;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -148,6 +149,7 @@ public final class DeviceSession {
 
     private void writeNow(byte[] cmd) {
         synchronized (writeLock) {
+            System.out.println("TX: " + HexFormat.of().withUpperCase().withDelimiter(" ").formatHex(cmd));
             port.writeBytes(cmd, cmd.length);
         }
     }
@@ -187,6 +189,7 @@ public final class DeviceSession {
         while (running) {
             int n = port.readBytes(chunk, chunk.length);
             if (n <= 0) continue;
+            System.out.println("RX: " + HexFormat.of().withUpperCase().withDelimiter(" ").formatHex(chunk, 0, n));
 
             frameBuffer.append(chunk, n);
 
