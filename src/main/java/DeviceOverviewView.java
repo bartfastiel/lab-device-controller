@@ -23,8 +23,8 @@ public final class DeviceOverviewView {
         var backButton = LabButton.create(device.toString());
         backButton.addActionListener(_ -> onBack.run());
 
-        var statusLed = LabLedLabel.create(); // gray by default
-        var heartbeat = LabHeartbeat.create();    // white/black toggling
+        var statusLed = LabLedLabel.create();      // gray / green
+        var heartbeat = LabHeartbeat.create();     // toggling indicator
 
         top.add(backButton, BorderLayout.WEST);
 
@@ -32,18 +32,19 @@ public final class DeviceOverviewView {
         right.setBackground(Color.BLACK);
         right.add(heartbeat);
         right.add(statusLed);
-        top.add(right, BorderLayout.EAST);
 
+        top.add(right, BorderLayout.EAST);
         root.add(top, BorderLayout.NORTH);
 
         // -------------------------
-        // Center layout
+        // Channels (compact, shared grid)
         // -------------------------
 
-        var center = new JPanel(new GridLayout(1, 2, 40, 0));
-        center.setBackground(Color.BLACK);
+        var channels = new JPanel(new GridLayout(1, 2, 60, 0));
+        channels.setBackground(Color.BLACK);
 
-        // Channel 1
+        // -------- Channel 1 --------
+
         var ch1VoltageSet = LabValueDisplay.editable(2, 2);
         var ch1CurrentSet = LabValueDisplay.editable(1, 3);
         var ch1VoltageMeas = LabValueDisplay.readonly(2, 2);
@@ -52,7 +53,7 @@ public final class DeviceOverviewView {
         var ch1CV = LabLedLabel.create();
         var ch1CC = LabLedLabel.create();
 
-        center.add(
+        channels.add(
                 channelPanel(
                         "Channel 1",
                         ch1VoltageSet,
@@ -64,7 +65,8 @@ public final class DeviceOverviewView {
                 )
         );
 
-        // Channel 2
+        // -------- Channel 2 --------
+
         var ch2VoltageSet = LabValueDisplay.editable(2, 2);
         var ch2CurrentSet = LabValueDisplay.editable(1, 3);
         var ch2VoltageMeas = LabValueDisplay.readonly(2, 2);
@@ -73,7 +75,7 @@ public final class DeviceOverviewView {
         var ch2CV = LabLedLabel.create();
         var ch2CC = LabLedLabel.create();
 
-        center.add(
+        channels.add(
                 channelPanel(
                         "Channel 2",
                         ch2VoltageSet,
@@ -85,7 +87,19 @@ public final class DeviceOverviewView {
                 )
         );
 
-        root.add(center, BorderLayout.CENTER);
+        // -------------------------
+        // Center: vertical centering wrapper
+        // -------------------------
+
+        var centerWrapper = new JPanel();
+        centerWrapper.setBackground(Color.BLACK);
+        centerWrapper.setLayout(new BoxLayout(centerWrapper, BoxLayout.Y_AXIS));
+
+        centerWrapper.add(Box.createVerticalGlue());
+        centerWrapper.add(channels);
+        centerWrapper.add(Box.createVerticalGlue());
+
+        root.add(centerWrapper, BorderLayout.CENTER);
 
         // -------------------------
         // Bottom buttons
@@ -152,6 +166,7 @@ public final class DeviceOverviewView {
     // -------------------------
     // Helper: channel layout
     // -------------------------
+
     private static JComponent channelPanel(
             String title,
             LabValueDisplay vSet,
@@ -166,7 +181,7 @@ public final class DeviceOverviewView {
         root.setLayout(new BoxLayout(root, BoxLayout.Y_AXIS));
 
         root.add(LabLabel.title(title));
-        root.add(Box.createVerticalStrut(20));
+        root.add(Box.createVerticalStrut(12));
 
         // -------- shared grid for Voltage + Current --------
 
@@ -175,19 +190,19 @@ public final class DeviceOverviewView {
 
         var gbc = new GridBagConstraints();
         gbc.insets = new Insets(4, 4, 4, 4);
-        gbc.gridy = 0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.WEST;
 
-        // Column 0: labels (minimal)
+        // Labels
         gbc.gridx = 0;
+        gbc.gridy = 0;
         gbc.weightx = 0.0;
         grid.add(LabLabel.normal("Voltage"), gbc);
 
         gbc.gridy = 1;
         grid.add(LabLabel.normal("Current"), gbc);
 
-        // Column 1: Soll (preferred, expandable)
+        // Soll
         gbc.gridx = 1;
         gbc.gridy = 0;
         gbc.weightx = 0.5;
@@ -196,7 +211,7 @@ public final class DeviceOverviewView {
         gbc.gridy = 1;
         grid.add(iSet, gbc);
 
-        // Column 2: Ist (preferred, expandable)
+        // Ist
         gbc.gridx = 2;
         gbc.gridy = 0;
         gbc.weightx = 0.5;
@@ -206,11 +221,11 @@ public final class DeviceOverviewView {
         grid.add(iMeas, gbc);
 
         root.add(grid);
-        root.add(Box.createVerticalStrut(12));
+        root.add(Box.createVerticalStrut(8));
 
-        // -------- CV / CC status --------
+        // -------- CV / CC --------
 
-        var status = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        var status = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         status.setBackground(Color.BLACK);
         status.add(LabLabel.small("CV"));
         status.add(cv);
@@ -220,5 +235,4 @@ public final class DeviceOverviewView {
         root.add(status);
         return root;
     }
-
 }
