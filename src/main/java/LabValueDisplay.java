@@ -8,6 +8,9 @@ import java.util.function.Consumer;
 
 public final class LabValueDisplay extends JComponent {
 
+    private static final Color DISPLAY_BLUE =
+            new Color(80, 160, 255);
+
     // -------------------------
     // Factory
     // -------------------------
@@ -55,7 +58,7 @@ public final class LabValueDisplay extends JComponent {
 
         setFont(new Font(Font.MONOSPACED, Font.BOLD, 28));
         setBackground(Color.BLACK);
-        setForeground(new Color(0, 0, 255));
+        setForeground(DISPLAY_BLUE);
         setFocusable(editable);
 
         if (editable) installKeyHandling();
