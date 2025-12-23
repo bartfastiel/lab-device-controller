@@ -180,10 +180,16 @@ public final class DeviceOverviewView {
         root.setBackground(Color.BLACK);
         root.setLayout(new BoxLayout(root, BoxLayout.Y_AXIS));
 
-        root.add(LabLabel.title(title));
-        root.add(Box.createVerticalStrut(12));
+        // -------------------------
+        // Channel title
+        // -------------------------
 
-        // -------- shared grid for Voltage + Current --------
+        root.add(LabLabel.title(title));
+        root.add(Box.createVerticalStrut(8));
+
+        // -------------------------
+        // Shared grid: headers + values
+        // -------------------------
 
         var grid = new JPanel(new GridBagLayout());
         grid.setBackground(Color.BLACK);
@@ -193,37 +199,60 @@ public final class DeviceOverviewView {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.WEST;
 
-        // Labels
+        // ----- Column headers -----
+
+        // empty top-left cell
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.0;
+        grid.add(new JLabel(""), gbc);
+
+        // Set
+        gbc.gridx = 1;
+        gbc.weightx = 0.5;
+        grid.add(LabLabel.small("Set"), gbc);
+
+        // Actual
+        gbc.gridx = 2;
+        gbc.weightx = 0.5;
+        grid.add(LabLabel.small("Actual"), gbc);
+
+        // ----- Voltage row -----
+
+        gbc.gridy = 1;
+        gbc.gridx = 0;
+        gbc.weightx = 0.0;
         grid.add(LabLabel.normal("Voltage"), gbc);
 
-        gbc.gridy = 1;
+        gbc.gridx = 1;
+        gbc.weightx = 0.5;
+        grid.add(LabValueWithUnit.of(vSet, "V"), gbc);
+
+        gbc.gridx = 2;
+        gbc.weightx = 0.5;
+        grid.add(LabValueWithUnit.of(vMeas, "V"), gbc);
+
+        // ----- Current row -----
+
+        gbc.gridy = 2;
+        gbc.gridx = 0;
+        gbc.weightx = 0.0;
         grid.add(LabLabel.normal("Current"), gbc);
 
-        // Soll
         gbc.gridx = 1;
-        gbc.gridy = 0;
         gbc.weightx = 0.5;
-        grid.add(vSet, gbc);
+        grid.add(LabValueWithUnit.of(iSet, "A"), gbc);
 
-        gbc.gridy = 1;
-        grid.add(iSet, gbc);
-
-        // Ist
         gbc.gridx = 2;
-        gbc.gridy = 0;
         gbc.weightx = 0.5;
-        grid.add(vMeas, gbc);
-
-        gbc.gridy = 1;
-        grid.add(iMeas, gbc);
+        grid.add(LabValueWithUnit.of(iMeas, "A"), gbc);
 
         root.add(grid);
         root.add(Box.createVerticalStrut(8));
 
-        // -------- CV / CC --------
+        // -------------------------
+        // CV / CC status
+        // -------------------------
 
         var status = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         status.setBackground(Color.BLACK);
@@ -233,6 +262,7 @@ public final class DeviceOverviewView {
         status.add(cc);
 
         root.add(status);
+
         return root;
     }
 }

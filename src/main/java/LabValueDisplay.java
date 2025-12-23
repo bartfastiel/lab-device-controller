@@ -124,16 +124,27 @@ public final class LabValueDisplay extends JComponent {
         int charW = fm.charWidth('0');
         int charH = fm.getHeight();
 
-        int width =
-                10                  // left padding
-                        + charW * buffer.length()
-                        + 10;                 // right padding
+        int width = charW * buffer.length() + 10;
 
-        int height =
-                charH
-                        + 10;                 // top/bottom padding
+        int height = charH;
 
         return new Dimension(width, height);
+    }
+
+    @Override
+    public int getBaseline(int width, int height) {
+        var fm = getFontMetrics(getFont());
+
+        // baseline = top padding + ascent
+        int charH = fm.getAscent();
+
+        // must match paintComponent vertical placement
+        return (height + charH) / 2 - 6;
+    }
+
+    @Override
+    public BaselineResizeBehavior getBaselineResizeBehavior() {
+        return BaselineResizeBehavior.CONSTANT_ASCENT;
     }
 
     private void drawDecimalDot(Graphics2D g2, int x, int baselineY, FontMetrics fm) {
