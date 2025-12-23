@@ -3,6 +3,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 public final class LabValueDisplay extends JComponent {
@@ -19,23 +20,19 @@ public final class LabValueDisplay extends JComponent {
 
     private final int intDigits;
     private final int fracDigits;
+    private final int digits;
     private final int dotIndex;
 
-    private final StringBuilder buffer;
+    private AtomicLong currentDisplayValue = new AtomicLong(0);
     private int cursor = -1;
-
-    private BigDecimal min = BigDecimal.ZERO;
-    private BigDecimal max;
 
     private Consumer<BigDecimal> onChange;
 
     private LabValueDisplay(int intDigits, int fracDigits, boolean editable) {
         this.intDigits = intDigits;
         this.fracDigits = fracDigits;
+        this.digits = intDigits + fracDigits;
         this.dotIndex = intDigits;
-
-        this.buffer = new StringBuilder(format(BigDecimal.ZERO));
-        this.max = maxValue();
 
         setFont(new Font(Font.MONOSPACED, Font.BOLD, 56));
         setBackground(Color.BLACK);
@@ -51,11 +48,10 @@ public final class LabValueDisplay extends JComponent {
     }
 
     public void setValue(BigDecimal value) {
-        var clamped = clamp(value);
-        var s = format(clamped);
-
-        buffer.setLength(0);
-        buffer.append(s);
+        currentDisplayValue.set(value
+                .setScale(fracDigits, RoundingMode.UNNECESSARY)
+                .movePointRight(fracDigits)
+                .intValueExact());
 
         repaint();
     }
@@ -94,10 +90,14 @@ public final class LabValueDisplay extends JComponent {
         int x = 10;
         int y = (getHeight() + charH) / 2 - 6;
 
-        for (int i = 0; i < buffer.length(); i++) {
+        // now loop over digits, by using the ten-exponent of every place in currentDisplayValue
+        var v = currentDisplayValue.get();
+        for (int characterIndex = 0; characterIndex < digits; characterIndex++) {
+            int tenExp = digits - characterIndex - 1;
+            char c = (char) ('0' + v / Math.pow(10, tenExp) % 10);
 
             // Cursor highlight
-            if (i == cursor && hasFocus() && isFocusable()) {
+            if (characterIndex == cursor && hasFocus() && isFocusable()) {
                 g2.setColor(Color.WHITE);
                 g2.fillRect(x - 3, y - charH, charW + 6, fm.getHeight());
                 g2.setColor(Color.BLACK);
@@ -106,15 +106,13 @@ public final class LabValueDisplay extends JComponent {
             }
 
             // Digit
-            g2.drawString(String.valueOf(buffer.charAt(i)), x, y);
-
-            // Manual decimal dot (between intDigits and fracDigits)
-            if (i + 1 == dotIndex) {
-                drawDecimalDot(g2, x + charW, y, fm);
-            }
+            g2.drawString(String.valueOf(c), x, y);
 
             x += charW;
         }
+
+        // Decimal dot
+        drawDecimalDot(g2, 10 + charW * dotIndex, y, fm);
     }
 
     @Override
@@ -124,7 +122,7 @@ public final class LabValueDisplay extends JComponent {
         int charW = fm.charWidth('0');
         int charH = fm.getHeight();
 
-        int width = charW * buffer.length() + 10;
+        int width = charW * digits + charW / 2 + 10;
 
         int height = charH;
 
@@ -182,13 +180,10 @@ public final class LabValueDisplay extends JComponent {
         int charW = fm.charWidth('0');
         int startX = 10;
 
-        int idx;
-        idx = (x - startX + charW / 2) / charW;
+        int relativeX = x - startX;
+        int charIndex = relativeX / charW;
+        cursor = Math.max(0, Math.min(digits - 1, charIndex));
 
-        if (idx < 0) idx = 0;
-        if (buffer.length() <= idx) idx = buffer.length() - 1;
-
-        cursor = idx;
         repaint();
     }
 
@@ -223,43 +218,35 @@ public final class LabValueDisplay extends JComponent {
     }
 
     private void moveCursor(int dir) {
-        if (cursor < 0) {
-            cursor = 0;
-            repaint();
-            return;
-        }
-
-        int next;
-        next = cursor + dir;
-
-        if (0 <= next && next < buffer.length()) {
-            cursor = next;
+        var clamped = Math.max(0, Math.min(digits - 1, cursor + dir));
+        if (clamped != cursor) {
+            cursor = clamped;
             repaint();
         }
     }
 
     private void replaceDigit(char c) {
         if (cursor < 0) return;
-
-        buffer.setCharAt(cursor, c);
+        var currentValue = currentDisplayValue.get();
+        int tenExp = digits - 1 - cursor;
+        long placeValue = (long) Math.pow(10, tenExp);
+        long digitValue = Math.max(0, Math.min(9, c - '0')) * placeValue;
+        long newValue = currentValue - currentValue / placeValue % 10 * placeValue + digitValue;
+        currentDisplayValue.set(clamp(newValue));
         emitChange();
         moveCursor(1);
+        repaint();
     }
 
     private void increment(int delta) {
         if (cursor < 0) return;
-
-        int posFromRight;
-        posFromRight = (buffer.length() - 1) - cursor;
-
-        BigDecimal step;
-        step = BigDecimal.ONE.movePointLeft(posFromRight);
-
-        BigDecimal next;
-        next = clamp(toBigDecimal().add(step.multiply(BigDecimal.valueOf(delta))));
-
-        setValue(next);
+        var currentValue = currentDisplayValue.get();
+        int tenExp = digits - 1 - cursor;
+        long placeValue = (long) Math.pow(10, tenExp - fracDigits);
+        long newValue = currentValue + delta * placeValue;
+        currentDisplayValue.set(clamp(newValue));
         emitChange();
+        repaint();
     }
 
     private void emitChange() {
@@ -267,30 +254,16 @@ public final class LabValueDisplay extends JComponent {
     }
 
     private BigDecimal toBigDecimal() {
-        var s = buffer.toString();
-        var withDot = s.substring(0, dotIndex) + "." + s.substring(dotIndex);
-        return new BigDecimal(withDot);
-    }
-
-    private BigDecimal clamp(BigDecimal v) {
-        if (v.compareTo(min) < 0) return min.setScale(fracDigits, RoundingMode.UNNECESSARY);
-        if (v.compareTo(max) > 0) return max;
-        return v.setScale(fracDigits, RoundingMode.UNNECESSARY);
-    }
-
-    private String format(BigDecimal v) {
-        BigDecimal scaled;
-        scaled = v.setScale(fracDigits, RoundingMode.UNNECESSARY).movePointRight(fracDigits);
-
-        long raw;
-        raw = scaled.longValueExact();
-
-        return String.format("%0" + (intDigits + fracDigits) + "d", raw);
-    }
-
-    private BigDecimal maxValue() {
-        return BigDecimal.valueOf(Math.pow(10, intDigits))
-                .subtract(BigDecimal.ONE.movePointLeft(fracDigits))
+        return BigDecimal.valueOf(currentDisplayValue.get())
+                .movePointLeft(fracDigits)
                 .setScale(fracDigits, RoundingMode.UNNECESSARY);
+    }
+
+    private long clamp(long v) {
+        if (v < 0) return 0;
+        if (v >= Math.pow(10, digits)) {
+            return (int) Math.pow(10, digits) - 1;
+        }
+        return v;
     }
 }
